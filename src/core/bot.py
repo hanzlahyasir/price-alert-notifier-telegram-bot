@@ -170,8 +170,8 @@ async def run_all_scrapers_async(db: DBManager, alerter: Alerter):
 def run_all_scrapers():
     logger.info("=== Starting scraping run ===")
     config    = load_config()
-    bot_token = os.getenv("TELEGRAM_BOT_TOKEN") or config.get("TELEGRAM", "BOT_TOKEN", fallback=None)
-    chat_id   = os.getenv("TELEGRAM_CHAT_ID") or config.get("TELEGRAM", "CHAT_ID",   fallback=None)
+    bot_token = os.getenv("BOT_TOKEN") or config.get("TELEGRAM", "BOT_TOKEN", fallback=None)
+    chat_id   = os.getenv("CHAT_ID") or config.get("TELEGRAM", "CHAT_ID",   fallback=None)
     alerter   = Alerter(bot_token, chat_id)
 
     with DBManager() as db:
