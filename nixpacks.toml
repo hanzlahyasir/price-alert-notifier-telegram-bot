@@ -1,0 +1,22 @@
+# nixpacks.toml
+
+# Phase 1: Setup - Install necessary system-level dependencies for Playwright
+[phases.setup]
+nixPkgs = [
+    "nodejs",
+    "chromium",
+    "firefox",
+    "webkitgtk"
+]
+
+# Phase 2: Build - Install Python packages and then install Playwright browsers
+[phases.build]
+cmds = [
+    "pip install --upgrade pip",
+    "pip install -r requirements.txt",
+    "playwright install --with-deps"  # This command installs browsers AND their OS dependencies
+]
+
+# Phase 3: Start - The command to run your bot
+[start]
+cmd = "python main.py"
