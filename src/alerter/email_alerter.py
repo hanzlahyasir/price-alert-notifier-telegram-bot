@@ -39,8 +39,8 @@ def email_sender(subject: str, body: str):
     Fall back to config.ini only if env var is missing (dev).
     """
     # 1) Try env vars first
-    SENDER   = os.getenv("EMAIL_SENDER")
-    RECEIVER = os.getenv("EMAIL_RECEIVER")
+    SENDER   = os.getenv("SENDER_EMAIL")
+    RECEIVER = os.getenv("RECEIVER_EMAIL")
     SERVER   = os.getenv("SMTP_SERVER")
     PORT     = os.getenv("SMTP_PORT")
     USER     = os.getenv("SMTP_USERNAME")
