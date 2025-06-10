@@ -1,33 +1,24 @@
-# nixpacks.toml (v2 - More Robust)
+# nixpacks.toml (v3 - Corrected Syntax)
 
-# Explicitly define the Python version to use
-[providers]
-python = "3.11"
-
-# Phase 1: Setup - Install system-level dependencies needed by Playwright
+# Phase 1: Setup - Install system-level dependencies AND the Python interpreter
 [phases.setup]
 nixPkgs = [
-    "nodejs",
-    "pkg-config",
-    "glib"
+    # Explicitly install a Python 3.11 environment. This makes the `python3` command available.
+    "python311",
+    # System dependencies for Playwright browsers
+    "nodejs"
 ]
 
-# Phase 2: Install - Install all Python packages from requirements.txt
-[phases.install]
-cmds = [
-    "pip install --upgrade pip",
-    "pip install -r requirements.txt"
-]
-
-# Phase 3: Build - Run commands that prepare the application after installation
+# Phase 2: Build - Install Python packages and then install Playwright browsers
 [phases.build]
 cmds = [
+    "pip install --upgrade pip",
+    "pip install -r requirements.txt",
     # This command installs the necessary browser binaries AND their OS dependencies
     "playwright install --with-deps"
 ]
 
-# Phase 4: Start - The command to run your bot
+# Phase 3: Start - The command to run your bot
 [start]
-# Use "python3" to be explicit. The "-u" flag ensures unbuffered output,
-# which is important for seeing logs in real-time on Railway.
+# Use "python3" to be explicit. The "-u" flag ensures unbuffered output for logs.
 cmd = "python3 -u main.py"
