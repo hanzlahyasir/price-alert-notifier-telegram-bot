@@ -1,24 +1,18 @@
-import configparser
+# src/common/config_loader.py
 import os
+from configparser import ConfigParser
 
-def load_config(config_file_path='config.ini'):
-    
-    project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-    print(f"Project root determined as: {project_root}")
+def load_config(config_file_path=None):
+    # Default to config.ini in project root
+    if config_file_path is None:
+        # __file__ is something like /app/src/common/config_loader.py
+        project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        config_file_path = os.path.join(project_root, "config.ini")
 
-    if not os.path.exists(config_file_path):
-        raise FileNotFoundError(f"Configuration file '{config_file_path}' not found. Ensure it is in the project root.")
-
-    config = configparser.ConfigParser()
-    config.read(config_file_path)
-    return config
-
-if __name__ == '__main__':
-    
-    test_config_path = os.path.join(os.path.dirname(__file__), '..', '..', 'config.ini')
-    if os.path.exists(test_config_path):
-        cfg = load_config(test_config_path)
-        print("Telegram Bot Token:", cfg['TELEGRAM']['BOT_TOKEN'])
-        print("Email Sender:", cfg['EMAIL']['SENDER_EMAIL'])
+    cp = ConfigParser()
+    if os.path.exists(config_file_path):
+        cp.read(config_file_path)
     else:
-        print(f"Test config file not found at {test_config_path}. Make sure config.ini is in the project root.")
+        # Warn but do NOT raise
+        print(f"⚠️  Warning: config file '{config_file_path}' not found. Falling back to environment variables.")
+    return cp
