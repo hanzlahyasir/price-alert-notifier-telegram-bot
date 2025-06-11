@@ -15,4 +15,5 @@ slugify==0.0.1
 soupsieve==2.7
 telegram==0.0.1
 typing_extensions==4.14.0
-Unidecode
+Unidecode==1.4.0
+unicode==2.9
