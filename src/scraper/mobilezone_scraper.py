@@ -62,7 +62,7 @@ async def get_category_urls(playwright):
 
     if not links:
         toggle = page.locator("div.MuiBox-root.css-1badijy").first
-        if await toggle.is_visible(timeout=10_000):
+        if await toggle.is_visible(timeout=30_000):
             await toggle.click()
             await page.wait_for_selector(link_sel, timeout=60_000)
             links = await page.query_selector_all(link_sel)
@@ -94,7 +94,7 @@ async def scrape_one_category(playwright, url, sem):
             try:
                 await page.goto(next_url, timeout=120_000, wait_until="domcontentloaded")
                 await page.wait_for_timeout(2_000)
-                await page.wait_for_selector("div.MuiBox-root.css-1yjvs5a", timeout=20_000)
+                await page.wait_for_selector("div.MuiBox-root.css-1yjvs5a", timeout=120_000)
             except PlaywrightTimeoutError as e:
                 print(f"  → Timeout loading {next_url}: {e!r}, stopping paging.")
                 break
