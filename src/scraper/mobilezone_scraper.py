@@ -7,6 +7,17 @@ from urllib.parse import urljoin
 from playwright.async_api import async_playwright, TimeoutError as PlaywrightTimeoutError
 from bs4 import BeautifulSoup
 
+browser_args = [
+    '--no-sandbox',
+    '--disable-setuid-sandbox',
+    '--disable-dev-shm-usage',
+    '--disable-accelerated-2d-canvas',
+    '--no-first-run',
+    '--no-zygote',
+    '--single-process', # This can help, but might be less stable
+    '--disable-gpu'
+]
+
 BASE_URL = "https://www.mobilezone.com.py/"
 USER_AGENT = (
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
@@ -140,7 +151,7 @@ async def scrape_one_category(context, url, sem):
 async def main():
     start = time.time()
     async with async_playwright() as pw:
-        browser = await pw.chromium.launch(headless=True)
+        browser = await pw.chromium.launch(headless=True, args=browser_args)
         context = await browser.new_context(user_agent=USER_AGENT)
 
         page = await context.new_page()
