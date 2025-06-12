@@ -96,49 +96,49 @@ async def scrape_one_category(playwright, url, sem):
             await page.wait_for_timeout(2_000)
 
             # wait for the card containers
-            await page.wait_for_selector(
-                'xpath=//*[@id="root"]/div[3]/div[1]/div[4]/div[2]/div',
-                timeout=120_000
-            )
+            # await page.wait_for_selector(
+            #     'xpath=//*[@id="root"]/div[3]/div[1]/div[4]/div[2]/div',
+            #     timeout=120_000
+            # )
 
             # grab all card text blobs
             locator = page.locator(
                 'xpath=//*[@id="root"]/div[3]/div[1]/div[4]/div[2]/div'
             )
-            blobs = await locator.all_text_contents()
+            blob = await locator.all_text_contents()
 
-            for blob in blobs:
-                for card in blob.split("Cód:"):
-                    text = card.strip()
-                    if not text:
-                        continue
+            
+            for card in blob.split("Cód:"):
+                text = card.strip()
+                if not text:
+                    continue
 
-                    # parse code
-                    m = re.match(r"^(\d+)", text)
-                    code = m.group(1) if m else None
+                # parse code
+                m = re.match(r"^(\d+)", text)
+                code = m.group(1) if m else None
 
-                    # parse name (up to G$)
-                    m = re.match(r"^\d+(.*)G\$", text)
-                    name = m.group(1).strip() if m else None
+                # parse name (up to G$)
+                m = re.match(r"^\d+(.*)G\$", text)
+                name = m.group(1).strip() if m else None
 
-                    # USD price is last $…
-                    prices = re.findall(r"\$ ([\d.,]+)", text)
-                    price = float(prices[-1].replace(",", "")) if prices else None
+                # USD price is last $…
+                prices = re.findall(r"\$ ([\d.,]+)", text)
+                price = float(prices[-1].replace(",", "")) if prices else None
 
-                    if code and name:
-                        products.append({
-                            "code": code,
-                            "name": name,
-                            "price": price,
-                            "stock_status": "In Stock",
-                            "url": urljoin(BASE_URL, f"product/{code}")
-                        })
+                if code and name:
+                    products.append({
+                        "code": code,
+                        "name": name,
+                        "price": price,
+                        "stock_status": "In Stock",
+                        "url": urljoin(BASE_URL, f"product/{code}")
+                    })
 
             # pagination next
             next_btn = page.locator(
-                "xpath=//*[@id='root']/div[3]/div[1]/nav//button"
-                "[@aria-label='Go to next page']"
+                '//*[@id="root"]/div[3]/div[1]/nav/ul/li[4]/button'
             )
+            # //*[@id="root"]/div[3]/div[1]/nav/ul/li[4]/button
             if await next_btn.count() and not await next_btn.is_disabled():
                 await next_btn.click()
                 page_num += 1
