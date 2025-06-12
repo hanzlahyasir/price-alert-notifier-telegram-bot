@@ -152,7 +152,7 @@ def scrape_all_products(links, max_workers=15):
 def main():
     start = time.time()
     links = get_product_links_from_list()
-    prods = scrape_all_products(links[:100], max_workers=20)
+    prods = scrape_all_products(links, max_workers=20)
     print(f"Scraped {len(prods)} products in {time.time()-start:.1f}s")
     return prods
 
