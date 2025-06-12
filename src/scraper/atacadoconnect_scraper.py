@@ -75,6 +75,16 @@ def with_retries(max_retries=3, backoff=1.0):
         return wrapper
     return deco
 
+def limited_get(url, **kwargs):
+    global LAST_CALL
+    now = time.time()
+    wait = CALL_INTERVAL - (now - LAST_CALL)
+    if wait > 0:
+        time.sleep(wait + random.uniform(0, 0.05))
+    resp = cureq.get(url, **kwargs)
+    LAST_CALL = time.time()
+    return resp
+
 
 @with_retries(max_retries=4, backoff=1)
 def get_product_links_from_list():
@@ -140,7 +150,7 @@ def scrape_individual_product_page(url):
     headers = {'user-agent': random.choice(USER_AGENTS)}
     profile = random.choice(CHROME_PROFILES)
     print(f"  • Fetching {url} as {profile}")
-    resp = cureq.get(
+    resp = limited_get(
         url,
         impersonate=profile,
         headers=headers,
