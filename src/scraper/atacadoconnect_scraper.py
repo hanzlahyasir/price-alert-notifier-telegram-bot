@@ -100,8 +100,6 @@ def scrape_individual_product_page(url):
         resp = cureq.get(
             url,
             impersonate=random.choice(CHROME_PROFILES),
-            headers={"Referer": BASE_URL},
-            timeout=30000,
         )
         resp.raise_for_status()
 
@@ -119,7 +117,7 @@ def scrape_individual_product_page(url):
         # Code & name
         cl = soup.find("label", id="j_idt171")
         nl = soup.find("label", id="j_idt173")
-        if not cl or not nl:
+        if not cl.get_text(strip=True) or not nl.get_text(strip=True):
             return {}
 
         return {
@@ -159,7 +157,7 @@ def scrape_all_products(links):
 def main():
     start = time.time()
     links = get_product_links_from_list()
-    products = scrape_all_products(links[:100])
+    products = scrape_all_products(links)
     print(f"Scraped {len(products)} products in {time.time() - start:.1f}s")
     return products
 
