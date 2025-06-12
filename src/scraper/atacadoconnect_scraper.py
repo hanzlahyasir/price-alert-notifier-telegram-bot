@@ -1,19 +1,15 @@
 from curl_cffi import requests as cureq
+from curl_cffi import Session
 from bs4 import BeautifulSoup, XMLParsedAsHTMLWarning
 import warnings
 import urllib.parse
 from slugify import slugify
-from concurrent.futures import ThreadPoolExecutor, as_completed
 import random
 import time
-from curl_cffi.requests import Session
-warnings.filterwarnings("ignore", category=XMLParsedAsHTMLWarning)
-
 
 warnings.filterwarnings("ignore", category=XMLParsedAsHTMLWarning)
 
-CHROME_PROFILES = ["chrome", "chrome110", "chrome117", "chrome120"]
-
+CHROME_PROFILES = ["chrome", "chrome110", "chrome120"]
 BASE_URL = "https://www.atacadoconnect.com/"
 VIEWSTATE = "-744970836134698848:-5915530980751057657"
 
@@ -65,10 +61,15 @@ def get_product_links_from_list():
     resp = cureq.post(
         url,
         data=urllib.parse.urlencode(payload, doseq=True).encode("utf-8"),
-        headers={"Content-Type":"application/x-www-form-urlencoded","Faces-Request":"partial/ajax","Referer":BASE_URL},
+        headers={
+            "Content-Type": "application/x-www-form-urlencoded",
+            "Faces-Request": "partial/ajax",
+            "Referer": BASE_URL
+        },
         impersonate=profile,
         timeout=30000,
     )
+    resp.raise_for_status()
     soup = BeautifulSoup(resp.content, "lxml")
     rows = soup.find_all("tr", attrs={"data-ri": True})
 
@@ -80,9 +81,9 @@ def get_product_links_from_list():
             continue
         code = code_span.get_text(strip=True)
         raw_name = names[0].get_text(strip=True)
-        raw_cat  = names[1].get_text(strip=True)
+        raw_cat = names[1].get_text(strip=True)
         slug_name = slugify(raw_name)
-        slug_cat  = slugify(raw_cat)
+        slug_cat = slugify(raw_cat)
         links.append(urllib.parse.urljoin(
             BASE_URL, f"produto/{slug_cat}/{slug_name}/{code}"
         ))
@@ -91,56 +92,67 @@ def get_product_links_from_list():
 
 
 @with_retries(max_retries=4, backoff=1)
-def scrape_individual_product_page(url):
-    with Session() as s:
-      r = s.get(url, impersonate='chrome')
-      soup = BeautifulSoup(r.content, "lxml")
-      pd = soup.find("label", id="j_idt461")
-      if pd:
-          raw = pd.get_text(strip=True).replace("U$\xa0","").replace(".","").replace(",",".")
-          try:
-              price = float(raw)
-              stock = "In Stock"
-          except:
-              price, stock = None, "Out of Stock"
-      else:
-          price, stock = None, "Out of Stock"
+def scrape_individual_product_page(url, session):
+    # Random human-like delay
+    time.sleep(random.uniform(1.0, 3.0))
+    # Clear cookies to force fresh handshake (optional)
+    session.cookies.clear()
 
-      
-      cl = soup.find("label", id="j_idt171")
-      nl = soup.find("label", id="j_idt173")
-      if not cl or not nl:
-          return {}
+    print(f"  • Fetching {url}")
+    resp = session.get(
+        url,
+        impersonate=random.choice(CHROME_PROFILES),
+        headers={"Referer": BASE_URL},
+        timeout=30000,
+    )
+    resp.raise_for_status()
 
-      return {
-          "url": url,
-          "code": cl.get_text(strip=True),
-          "name": nl.get_text(strip=True),
-          "price": price,
-          "stock_status": stock,
-      }
-      s.close()
+    soup = BeautifulSoup(resp.content, "lxml")
+    # Price parsing
+    pd = soup.find("label", id="j_idt461")
+    if pd:
+        raw = pd.get_text(strip=True).replace("U$\xa0", "").replace(".", "").replace(",", ".")
+    try:
+        price = float(raw)
+        stock = "In Stock"
+    except:
+        price, stock = None, "Out of Stock"
+
+    # Code & name
+    cl = soup.find("label", id="j_idt171")
+    nl = soup.find("label", id="j_idt173")
+    if not cl or not nl:
+        return {}
+
+    return {
+        "url": url,
+        "code": cl.get_text(strip=True),
+        "name": nl.get_text(strip=True),
+        "price": price,
+        "stock_status": stock,
+    }
 
 
-def scrape_all_products(links, max_workers=15):
+def scrape_all_products(links):
     results = []
-    with ThreadPoolExecutor(max_workers=max_workers) as exe:
-        futures = {exe.submit(scrape_individual_product_page, u): u for u in links}
-
-        for fut in as_completed(futures):
-            url = futures[fut]
+    # Single Session for the whole run
+    with Session() as session:
+        session.headers.update({"Referer": BASE_URL})
+        for url in links:
             try:
-                data = fut.result()
+                data = scrape_individual_product_page(url, session)
                 print(data)
                 if data:
                     results.append(data)
             except Exception as e:
                 print(f"Error on {url}: {e}")
-    print(f'Total products {len(results)}')
+
+    print(f"Total products scraped: {len(results)}")
+    # Dedupe by code
     unique = {}
     for prod in results:
-        code =  prod.get("code")
-        if code not in unique:
+        code = prod.get("code")
+        if code and code not in unique:
             unique[code] = prod
 
     deduped_list = list(unique.values())
@@ -148,13 +160,12 @@ def scrape_all_products(links, max_workers=15):
     return deduped_list
 
 
-
 def main():
     start = time.time()
     links = get_product_links_from_list()
-    prods = scrape_all_products(links, max_workers=20)
-    print(f"Scraped {len(prods)} products in {time.time()-start:.1f}s")
-    return prods
+    products = scrape_all_products(links)
+    print(f"Scraped {len(products)} products in {time.time() - start:.1f}s")
+    return products
 
 
 if __name__ == '__main__':
