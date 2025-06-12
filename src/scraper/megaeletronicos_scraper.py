@@ -16,7 +16,7 @@ browser_args = [
     '--disable-accelerated-2d-canvas',
     '--no-first-run',
     '--no-zygote',
-    '--single-process', # This can help, but might be less stable
+    '--single-process', 
     '--disable-gpu'
 ]
 
@@ -97,7 +97,6 @@ def get_category_page_data(category_url):
             stock_status = None
             price_tag = product.find("p", class_="principal-br")
             if price_tag:
-                # txt = price_tag.get_text(strip=True).replace("U$\xa0", "")
                 txt = re.sub(r'[^\d.]', "", price_tag.get_text(strip=True))
                 price = float(txt) if txt else ''
 
@@ -154,8 +153,6 @@ async def main():
     with ThreadPoolExecutor(max_workers=CONCURRENT_CATEGORIES) as exe:
         futures = {exe.submit(get_products_from_category, url): url
                    for url in cat_urls}
-        #this line here sets the only 2 categories to be scraped for debuggin purposes
-        #would be removed in the deployed version
         for fut in as_completed(futures):
             all_products.extend(fut.result())
 
@@ -169,7 +166,6 @@ async def main():
 
     deduped_list = list(unique.values())
     print(f"Unique items: {len(deduped_list)}")
-    print(deduped_list)
     return deduped_list
 
 
