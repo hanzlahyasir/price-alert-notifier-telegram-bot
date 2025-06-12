@@ -1,14 +1,16 @@
+import random
+import time
+import warnings
+import urllib.parse
 from curl_cffi import requests as cureq
 from curl_cffi import Session
 from bs4 import BeautifulSoup, XMLParsedAsHTMLWarning
-import warnings
-import urllib.parse
 from slugify import slugify
-import random
-import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 warnings.filterwarnings("ignore", category=XMLParsedAsHTMLWarning)
 
+# Configuration
 CHROME_PROFILES = ["chrome", "chrome110", "chrome120"]
 BASE_URL = "https://www.atacadoconnect.com/"
 VIEWSTATE = "-744970836134698848:-5915530980751057657"
@@ -18,45 +20,36 @@ USER_AGENTS = [
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
     "AppleWebKit/537.36 (KHTML, like Gecko) "
     "Chrome/115.0.0.0 Safari/537.36",
-
     # Firefox on macOS
     "Mozilla/5.0 (Macintosh; Intel Mac OS X 13_4) "
     "Gecko/20100101 Firefox/116.0",
-
     # Safari on iPhone
     "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) "
     "AppleWebKit/605.1.15 (KHTML, like Gecko) "
     "Version/17.0 Mobile/15E148 Safari/604.1",
-
     # Edge on Windows
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
     "AppleWebKit/537.36 (KHTML, like Gecko) "
     "Chrome/115.0.0.0 Safari/537.36 Edg/115.0.1901.203",
-
     # Chrome on Android
     "Mozilla/5.0 (Linux; Android 14; Pixel 7) "
     "AppleWebKit/537.36 (KHTML, like Gecko) "
     "Chrome/115.0.0.0 Mobile Safari/537.36",
-
     # Firefox on Linux
     "Mozilla/5.0 (X11; Linux x86_64; rv:116.0) "
     "Gecko/20100101 Firefox/116.0",
-
     # Opera on Windows
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
     "AppleWebKit/537.36 (KHTML, like Gecko) "
     "Chrome/115.0.0.0 Safari/537.36 OPR/101.0.4843.19",
-
     # Chrome on macOS
     "Mozilla/5.0 (Macintosh; Intel Mac OS X 13_4) "
     "AppleWebKit/537.36 (KHTML, like Gecko) "
     "Chrome/115.0.0.0 Safari/537.36",
-
     # Safari on macOS
     "Mozilla/5.0 (Macintosh; Intel Mac OS X 13_4) "
     "AppleWebKit/605.1.15 (KHTML, like Gecko) "
     "Version/17.0 Safari/605.1.15",
-
     # Samsung Internet on Android
     "Mozilla/5.0 (Linux; Android 14; SAMSUNG SM-S918U) "
     "AppleWebKit/537.36 (KHTML, like Gecko) "
@@ -87,6 +80,7 @@ def with_retries(max_retries=3, backoff=1.0):
 def get_product_links_from_list():
     profile = random.choice(CHROME_PROFILES)
     payload = [
+        # ... same payload as before ...
         ("javax.faces.partial.ajax", "true"),
         ("javax.faces.source", "dtProdutosListaPreco"),
         ("javax.faces.partial.execute", "dtProdutosListaPreco"),
@@ -143,64 +137,63 @@ def get_product_links_from_list():
 
 @with_retries(max_retries=4, backoff=1)
 def scrape_individual_product_page(url):
-    # time.sleep(random.uniform(1.0, 3.0))
-    headers = {
-        'user-agent' : random.choice(USER_AGENTS)
-    }
-    print(f"  • Fetching {url}")
+    headers = {'user-agent': random.choice(USER_AGENTS)}
+    profile = random.choice(CHROME_PROFILES)
+    print(f"  • Fetching {url} as {profile}")
+    resp = cureq.get(
+        url,
+        impersonate=profile,
+        headers=headers,
+        timeout=15000
+    )
+    resp.raise_for_status()
+
+    soup = BeautifulSoup(resp.content, "lxml")
+    # Price parsing
+    pd = soup.find("label", id="j_idt461")
+    raw = pd.get_text(strip=True).replace("U$\xa0", "").replace(".", "").replace(",", ".") if pd else None
     try:
-        resp = cureq.get(
-            url,
-            impersonate=random.choice(CHROME_PROFILES),
-            headers=headers
-        )
-        resp.raise_for_status()
+        price = float(raw)
+        stock = "In Stock"
+    except:
+        price, stock = None, "Out of Stock"
 
-        soup = BeautifulSoup(resp.content, "lxml")
-        # Price parsing
-        pd = soup.find("label", id="j_idt461")
-        if pd:
-            raw = pd.get_text(strip=True).replace("U$\xa0", "").replace(".", "").replace(",", ".")
-        try:
-            price = float(raw)
-            stock = "In Stock"
-        except:
-            price, stock = None, "Out of Stock"
+    cl = soup.find("label", id="j_idt171")
+    nl = soup.find("label", id="j_idt173")
+    if not cl or not nl:
+        return {}
 
-        # Code & name
-        cl = soup.find("label", id="j_idt171")
-        nl = soup.find("label", id="j_idt173")
-        if not cl.get_text(strip=True) or not nl.get_text(strip=True):
-            return {}
-
-        return {
-            "url": url,
-            "code": cl.get_text(strip=True),
-            "name": nl.get_text(strip=True),
-            "price": price,
-            "stock_status": stock,
-        }
-    except: raise
+    return {
+        "url": url,
+        "code": cl.get_text(strip=True),
+        "name": nl.get_text(strip=True),
+        "price": price,
+        "stock_status": stock,
+    }
 
 
-def scrape_all_products(links):
+def scrape_all_products(links, max_workers=10):
+    """
+    Fetch product pages in parallel using a thread pool.
+
+    :param links: List of product URLs
+    :param max_workers: Number of threads to use
+    :return: Deduplicated list of product dicts
+    """
     results = []
-    for url in links:
-        try:
-            data = scrape_individual_product_page(url)
-            if data:
-                results.append(data)
-        except Exception as e:
-            print(f"Error on {url}: {e}")
+    with ThreadPoolExecutor(max_workers=max_workers) as executor:
+        futures = {executor.submit(scrape_individual_product_page, url): url for url in links}
+        for future in as_completed(futures):
+            url = futures[future]
+            try:
+                data = future.result()
+                if data:
+                    results.append(data)
+            except Exception as e:
+                print(f"Error on {url}: {e}")
 
     print(f"Total products scraped: {len(results)}")
-    # Dedupe by code
-    unique = {}
-    for prod in results:
-        code = prod.get("code")
-        if code and code not in unique:
-            unique[code] = prod
-
+    unique = {prod['code']: prod for prod in results if 'code' in prod}
     deduped_list = list(unique.values())
     print(f"Unique items: {len(deduped_list)}")
     return deduped_list
@@ -209,10 +202,10 @@ def scrape_all_products(links):
 def main():
     start = time.time()
     links = get_product_links_from_list()
-    products = scrape_all_products(links)
+    # Adjust max_workers as needed (e.g., 20 for faster throughput)
+    products = scrape_all_products(links, max_workers=20)
     print(f"Scraped {len(products)} products in {time.time() - start:.1f}s")
     return products
-
 
 if __name__ == '__main__':
     main()
