@@ -92,60 +92,56 @@ def get_product_links_from_list():
 
 
 @with_retries(max_retries=4, backoff=1)
-def scrape_individual_product_page(url, session):
-    # Random human-like delay
+def scrape_individual_product_page(url):
     time.sleep(random.uniform(1.0, 3.0))
-    # Clear cookies to force fresh handshake (optional)
-    session.cookies.clear()
 
     print(f"  • Fetching {url}")
-    resp = session.get(
-        url,
-        impersonate=random.choice(CHROME_PROFILES),
-        headers={"Referer": BASE_URL},
-        timeout=30000,
-    )
-    resp.raise_for_status()
-
-    soup = BeautifulSoup(resp.content, "lxml")
-    # Price parsing
-    pd = soup.find("label", id="j_idt461")
-    if pd:
-        raw = pd.get_text(strip=True).replace("U$\xa0", "").replace(".", "").replace(",", ".")
     try:
-        price = float(raw)
-        stock = "In Stock"
-    except:
-        price, stock = None, "Out of Stock"
+        resp = cureq.get(
+            url,
+            impersonate=random.choice(CHROME_PROFILES),
+            headers={"Referer": BASE_URL},
+            timeout=30000,
+        )
+        resp.raise_for_status()
 
-    # Code & name
-    cl = soup.find("label", id="j_idt171")
-    nl = soup.find("label", id="j_idt173")
-    if not cl or not nl:
-        return {}
+        soup = BeautifulSoup(resp.content, "lxml")
+        # Price parsing
+        pd = soup.find("label", id="j_idt461")
+        if pd:
+            raw = pd.get_text(strip=True).replace("U$\xa0", "").replace(".", "").replace(",", ".")
+        try:
+            price = float(raw)
+            stock = "In Stock"
+        except:
+            price, stock = None, "Out of Stock"
 
-    return {
-        "url": url,
-        "code": cl.get_text(strip=True),
-        "name": nl.get_text(strip=True),
-        "price": price,
-        "stock_status": stock,
-    }
+        # Code & name
+        cl = soup.find("label", id="j_idt171")
+        nl = soup.find("label", id="j_idt173")
+        if not cl or not nl:
+            return {}
+
+        return {
+            "url": url,
+            "code": cl.get_text(strip=True),
+            "name": nl.get_text(strip=True),
+            "price": price,
+            "stock_status": stock,
+        }
+    except: raise
 
 
 def scrape_all_products(links):
     results = []
-    # Single Session for the whole run
-    with Session() as session:
-        session.headers.update({"Referer": BASE_URL})
-        for url in links:
-            try:
-                data = scrape_individual_product_page(url, session)
-                print(data)
-                if data:
-                    results.append(data)
-            except Exception as e:
-                print(f"Error on {url}: {e}")
+    for url in links:
+        try:
+            data = scrape_individual_product_page(url)
+            print(data)
+            if data:
+                results.append(data)
+        except Exception as e:
+            print(f"Error on {url}: {e}")
 
     print(f"Total products scraped: {len(results)}")
     # Dedupe by code
@@ -163,7 +159,7 @@ def scrape_all_products(links):
 def main():
     start = time.time()
     links = get_product_links_from_list()
-    products = scrape_all_products(links)
+    products = scrape_all_products(links[:100])
     print(f"Scraped {len(products)} products in {time.time() - start:.1f}s")
     return products
 
