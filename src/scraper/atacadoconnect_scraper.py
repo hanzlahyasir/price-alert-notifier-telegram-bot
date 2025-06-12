@@ -6,17 +6,8 @@ from slugify import slugify
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import random
 import time
-# this first gets the product links from the complete website
-# then goes to each product webpage
-# but this website has a cloudflare bot detection system set up so it gives captcha very ofter
-# resulting in that product not being scraped
-# This was come over upto some extent by using Curl Fingerprint consistency with curl_cffi 
-# and also by retrying for a failed product
-# but still isn't 100% 
-# hence rotating proxies would be required to go through all these
-# in the sample run I will scrape only a hundred products 
-# but as you will see, only about a 50 would be scraped successfully
-# the rest of the website works fine
+from curl_cffi.requests import Session
+warnings.filterwarnings("ignore", category=XMLParsedAsHTMLWarning)
 
 
 warnings.filterwarnings("ignore", category=XMLParsedAsHTMLWarning)
@@ -25,6 +16,7 @@ CHROME_PROFILES = ["chrome", "chrome110", "chrome117", "chrome120"]
 
 BASE_URL = "https://www.atacadoconnect.com/"
 VIEWSTATE = "-744970836134698848:-5915530980751057657"
+
 
 def with_retries(max_retries=3, backoff=1.0):
     def deco(f):
@@ -43,6 +35,7 @@ def with_retries(max_retries=3, backoff=1.0):
                         raise
         return wrapper
     return deco
+
 
 @with_retries(max_retries=4, backoff=1)
 def get_product_links_from_list():
@@ -96,43 +89,38 @@ def get_product_links_from_list():
     print(f"{len(links)} product URLs found")
     return links
 
+
 @with_retries(max_retries=4, backoff=1)
 def scrape_individual_product_page(url):
-    profile = random.choice(CHROME_PROFILES)
-    print(f"  • Fetching {url} via impersonate={profile}")
-    resp = cureq.get(
-        url,
-        impersonate=profile,
-        timeout=30000,
-        headers={"Referer": BASE_URL}
-    )
-    soup = BeautifulSoup(resp.content, "lxml")
+    with Session() as s:
+      r = s.get(url, impersonate='chrome')
+      soup = BeautifulSoup(r.content, "lxml")
+      pd = soup.find("label", id="j_idt461")
+      if pd:
+          raw = pd.get_text(strip=True).replace("U$\xa0","").replace(".","").replace(",",".")
+          try:
+              price = float(raw)
+              stock = "In Stock"
+          except:
+              price, stock = None, "Out of Stock"
+      else:
+          price, stock = None, "Out of Stock"
 
+      
+      cl = soup.find("label", id="j_idt171")
+      nl = soup.find("label", id="j_idt173")
+      if not cl or not nl:
+          return {}
 
-    pd = soup.find("label", id="j_idt461")
-    if pd:
-        raw = pd.get_text(strip=True).replace("U$\xa0","").replace(".","").replace(",",".")
-        try:
-            price = float(raw)
-            stock = "In Stock"
-        except:
-            price, stock = None, "Out of Stock"
-    else:
-        price, stock = None, "Out of Stock"
+      return {
+          "url": url,
+          "code": cl.get_text(strip=True),
+          "name": nl.get_text(strip=True),
+          "price": price,
+          "stock_status": stock,
+      }
+      s.close()
 
-    
-    cl = soup.find("label", id="j_idt171")
-    nl = soup.find("label", id="j_idt173")
-    if not cl or not nl:
-        return {}
-
-    return {
-        "url": url,
-        "code": cl.get_text(strip=True),
-        "name": nl.get_text(strip=True),
-        "price": price,
-        "stock_status": stock,
-    }
 
 def scrape_all_products(links, max_workers=15):
     results = []
@@ -151,7 +139,7 @@ def scrape_all_products(links, max_workers=15):
     print(f'Total products {len(results)}')
     unique = {}
     for prod in results:
-        code =  prod.get("code") 
+        code =  prod.get("code")
         if code not in unique:
             unique[code] = prod
 
@@ -159,12 +147,15 @@ def scrape_all_products(links, max_workers=15):
     print(f"Unique items: {len(deduped_list)}")
     return deduped_list
 
+
+
 def main():
     start = time.time()
     links = get_product_links_from_list()
-    prods = scrape_all_products(links, max_workers=20)
+    prods = scrape_all_products(links[:100], max_workers=20)
     print(f"Scraped {len(prods)} products in {time.time()-start:.1f}s")
     return prods
 
-if __name__ == "__main__":
+
+if __name__ == '__main__':
     main()
