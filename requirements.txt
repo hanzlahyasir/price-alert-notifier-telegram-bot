@@ -11,7 +11,7 @@ playwright==1.52.0
 pycparser==2.22
 pyee==13.0.0
 schedule==1.2.2
-slugify>=7.0.0
+python-slugify
 soupsieve==2.7
 python-telegram-bot==13.7
 typing_extensions==4.14.0
