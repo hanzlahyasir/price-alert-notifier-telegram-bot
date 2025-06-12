@@ -13,6 +13,56 @@ CHROME_PROFILES = ["chrome", "chrome110", "chrome120"]
 BASE_URL = "https://www.atacadoconnect.com/"
 VIEWSTATE = "-744970836134698848:-5915530980751057657"
 
+USER_AGENTS = [
+    # Chrome on Windows
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+    "AppleWebKit/537.36 (KHTML, like Gecko) "
+    "Chrome/115.0.0.0 Safari/537.36",
+
+    # Firefox on macOS
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 13_4) "
+    "Gecko/20100101 Firefox/116.0",
+
+    # Safari on iPhone
+    "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) "
+    "AppleWebKit/605.1.15 (KHTML, like Gecko) "
+    "Version/17.0 Mobile/15E148 Safari/604.1",
+
+    # Edge on Windows
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+    "AppleWebKit/537.36 (KHTML, like Gecko) "
+    "Chrome/115.0.0.0 Safari/537.36 Edg/115.0.1901.203",
+
+    # Chrome on Android
+    "Mozilla/5.0 (Linux; Android 14; Pixel 7) "
+    "AppleWebKit/537.36 (KHTML, like Gecko) "
+    "Chrome/115.0.0.0 Mobile Safari/537.36",
+
+    # Firefox on Linux
+    "Mozilla/5.0 (X11; Linux x86_64; rv:116.0) "
+    "Gecko/20100101 Firefox/116.0",
+
+    # Opera on Windows
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+    "AppleWebKit/537.36 (KHTML, like Gecko) "
+    "Chrome/115.0.0.0 Safari/537.36 OPR/101.0.4843.19",
+
+    # Chrome on macOS
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 13_4) "
+    "AppleWebKit/537.36 (KHTML, like Gecko) "
+    "Chrome/115.0.0.0 Safari/537.36",
+
+    # Safari on macOS
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 13_4) "
+    "AppleWebKit/605.1.15 (KHTML, like Gecko) "
+    "Version/17.0 Safari/605.1.15",
+
+    # Samsung Internet on Android
+    "Mozilla/5.0 (Linux; Android 14; SAMSUNG SM-S918U) "
+    "AppleWebKit/537.36 (KHTML, like Gecko) "
+    "SamsungBrowser/21.0 Chrome/115.0.0.0 Mobile Safari/537.36"
+]
+
 
 def with_retries(max_retries=3, backoff=1.0):
     def deco(f):
@@ -94,12 +144,15 @@ def get_product_links_from_list():
 @with_retries(max_retries=4, backoff=1)
 def scrape_individual_product_page(url):
     # time.sleep(random.uniform(1.0, 3.0))
-
+    headers = {
+        'user-agent' : random.choice(USER_AGENTS)
+    }
     print(f"  • Fetching {url}")
     try:
         resp = cureq.get(
             url,
             impersonate=random.choice(CHROME_PROFILES),
+            headers=headers
         )
         resp.raise_for_status()
 
@@ -135,7 +188,6 @@ def scrape_all_products(links):
     for url in links:
         try:
             data = scrape_individual_product_page(url)
-            print(data)
             if data:
                 results.append(data)
         except Exception as e:
