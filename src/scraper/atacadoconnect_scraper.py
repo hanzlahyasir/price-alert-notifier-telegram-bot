@@ -93,7 +93,7 @@ def get_product_links_from_list():
 
 @with_retries(max_retries=4, backoff=1)
 def scrape_individual_product_page(url):
-    time.sleep(random.uniform(1.0, 3.0))
+    # time.sleep(random.uniform(1.0, 3.0))
 
     print(f"  • Fetching {url}")
     try:
