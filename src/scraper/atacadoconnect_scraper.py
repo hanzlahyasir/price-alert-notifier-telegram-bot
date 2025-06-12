@@ -75,6 +75,9 @@ def with_retries(max_retries=3, backoff=1.0):
         return wrapper
     return deco
 
+LAST_CALL = 0
+CALL_INTERVAL = 0.2
+
 def limited_get(url, **kwargs):
     global LAST_CALL
     now = time.time()
