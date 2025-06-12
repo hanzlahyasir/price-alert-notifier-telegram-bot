@@ -86,6 +86,7 @@ async def scrape_one_category(playwright, url, sem):
             print(f"[Cat] {url} — Page {page_num}")
             # navigate, swallow ERR_ABORTED if it happens
             try:
+                await ctx.clear_cookies()
                 await page.goto(url, timeout=120_000)
             except PlaywrightError as e:
                 if "net::ERR_ABORTED" in str(e):
