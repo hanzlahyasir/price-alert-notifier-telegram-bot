@@ -40,10 +40,6 @@ def async_with_retries(max_retries=4, backoff_factor=1):
                     return await fn(*args, **kwargs)
                 except PlaywrightError as e:
                     msg = str(e)
-                    # # swallow intermittent aborts on goto
-                    # if "net::ERR_ABORTED" in msg:
-                    #     print(f"  → Ignored ERR_ABORTED in {fn.__name__}")
-                    #     return await fn(*args, **kwargs)
                     if attempt == max_retries:
                         print(f"{fn.__name__} failed after {attempt} attempts: {e!r}")
                         raise
@@ -63,7 +59,6 @@ async def get_category_urls(playwright):
 
     await page.goto(BASE_URL, timeout=120_000)
     print('page loaded')
-    # children <a> under that container div
     links = await page.locator('xpath=//*[@id="root"]/div[2]/div[2]/div/div/div/div/a').all()
     print(len(links))
     urls = set()
@@ -101,13 +96,13 @@ async def scrape_one_category(playwright, url, sem):
 
             # wait for the card containers
             await page.wait_for_selector(
-                "xpath=//*[@id='root']/div[3]/div[1]/div[4]/div[2]/div",
-                timeout=60_000
+                'xpath=//*[@id="root"]/div[3]/div[1]/div[4]/div[2]/div',
+                timeout=120_000
             )
 
             # grab all card text blobs
             locator = page.locator(
-                "xpath=//*[@id='root']/div[3]/div[1]/div[4]/div[2]/div"
+                'xpath=//*[@id="root"]/div[3]/div[1]/div[4]/div[2]/div'
             )
             blobs = await locator.all_text_contents()
 
