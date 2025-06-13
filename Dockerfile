@@ -1,33 +1,41 @@
 # ─────── BUILD STAGE ───────
 FROM python:3.10-slim AS builder
 
-# Ensure we can install build-time dependencies (wheels, C headers, etc.)
+# Install build-time dependencies (C headers, compiler)
 RUN apt-get update \
  && apt-get install -y --no-install-recommends build-essential gcc \
  && rm -rf /var/lib/apt/lists/*
 
+# Set working directory for build
 WORKDIR /app
 
-# Install only build-time deps and compile wheels into a wheelhouse
-COPY requirements.txt .
+# Copy requirements and build wheels
+COPY requirements.txt ./
 RUN pip install --upgrade pip \
  && pip wheel --no-cache-dir --wheel-dir=/wheels -r requirements.txt
 
 # ─────── RUNTIME STAGE ───────
 FROM python:3.10-slim
 
+# Switch to non-root user if desired (optional)
+# RUN useradd --create-home appuser && chown -R appuser /app
+# USER appuser
+
+# Set working directory for runtime
 WORKDIR /app
 
-# Copy just the prebuilt wheels and install only the runtime packages
+# Install only the prebuilt wheels
 COPY --from=builder /wheels /wheels
-RUN pip install --no-cache-dir /wheels/*
+RUN pip install --no-cache-dir /wheels/* \
+ && rm -rf /wheels
 
-# Copy your application code
+# Copy application code into /app
+# Ensure main.py exists alongside Dockerfile in build context
 COPY src/ ./src
-COPY main.py .    # or whatever entrypoint you have
+COPY main.py ./
 
-# If you have environment variables, set them here:
-# ENV PYTHONUNBUFFERED=1
+# (Optional) set environment variables
+ENV PYTHONUNBUFFERED=1
 
-# Finally, tell Docker how to run your app
+# Default command
 CMD ["python", "main.py"]
