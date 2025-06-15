@@ -108,7 +108,7 @@ async def scrape_one_category(playwright, url, sem):
             blob = await locator.all_text_contents()
 
             
-            for card in blob.split("Cód:"):
+            for card in blob[0].split("Cód:"):
                 text = card.strip()
                 if not text:
                     continue
