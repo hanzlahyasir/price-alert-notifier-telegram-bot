@@ -8,7 +8,6 @@ import os
 from src.common import load_config
 from src.alerter import send_telegram_message_sync, email_sender
 from src.scraper.mobilezone_scraper import main as scrape_mobilezone_playwright
-from src.scraper.atacadoconnect_scraper import main as scrape_atacadoconnect
 from src.scraper.megaeletronicos_scraper import main as scrape_megaeletronicos
 from src.storage.db_manager import DBManager
 
@@ -72,6 +71,26 @@ class Alerter:
                 f'<a href="{url}">Buy now</a>'
             )
         })
+    def queue_price_increase(self, site, name, old, new, url):
+        txt = (
+            f"📉 **Price Increase Alert!**\n\n"
+            f"**Product:** {name}\n"
+            f"**Site:** {site}\n"
+            f"**Old Price:** ${old:.2f}\n"
+            f"**New Price:** **${new:.2f}**\n"
+            f"**URL:** {url}"
+        )
+        self.t_msgs.append(txt)
+        self.e_msgs.append({
+            "subject": f"Price Increase: {name}",
+            "message": (
+                f"<h1>{name}</h1>"
+                f"<p>Site: {site}</p>"
+                f"<p>Old Price: ${old:.2f}</p>"
+                f"<p>New Price: ${new:.2f}</p>"
+                f'<a href="{url}">Buy now</a>'
+            )
+        })
 
     def queue_back_in_stock(self, site, name, price, url):
         txt = (
@@ -84,6 +103,24 @@ class Alerter:
         self.t_msgs.append(txt)
         self.e_msgs.append({
             "subject": f"Back in Stock: {name}",
+            "message": (
+                f"<h1>{name}</h1>"
+                f"<p>Site: {site}</p>"
+                f"<p>Price: ${price:.2f}</p>"
+                f'<a href="{url}">Check it out</a>'
+            )
+        })
+    def queue_out_of_stock(self, site, name, price, url):
+        txt = (
+            f"📦 **Out of Stock!**\n\n"
+            f"**Product:** {name}\n"
+            f"**Site:** {site}\n"
+            f"**Price:** ${price:.2f}\n"
+            f"**URL:** {url}"
+        )
+        self.t_msgs.append(txt)
+        self.e_msgs.append({
+            "subject": f"Out of Stock: {name}",
             "message": (
                 f"<h1>{name}</h1>"
                 f"<p>Site: {site}</p>"
@@ -136,6 +173,13 @@ def process_scraped_data(db: DBManager, site: str, items: list, alerter: Alerter
 
             if "out of stock" in str(old_stock).lower() and "in stock" in str(stock).lower():
                 alerter.queue_back_in_stock(site, name, price or 0.0, url)
+            if price is not None and old_price is not None and price > old_price:
+                alerter.queue_price_increase(site, name, old_price, price, url)
+
+            if "in stock" in str(old_stock).lower() and "out stock" in str(stock).lower():
+                alerter.queue_out_of_stock(site, name, price or "N/A", url)
+
+        
         else:
             logger.info(f"New product: {name} (${price}) on {site}")
 
@@ -153,7 +197,6 @@ async def run_all_scrapers_async(db: DBManager, alerter: Alerter):
     # Define your scrapers here
     scrapers = {
         "mobilezone":       scrape_mobilezone_playwright,
-        "atacadoconnect":   scrape_atacadoconnect,
         "megaeletronicos":  scrape_megaeletronicos,
     }
 
