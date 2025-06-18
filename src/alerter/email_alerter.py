@@ -32,13 +32,6 @@ def send_email_alert(
         return False
 
 def email_sender(subject: str, body: str):
-    """
-    In production, read all settings from environment variables:
-      EMAIL_SENDER, EMAIL_RECEIVER, SMTP_SERVER, SMTP_PORT,
-      SMTP_USERNAME, SMTP_PASSWORD
-    Fall back to config.ini only if env var is missing (dev).
-    """
-    # 1) Try env vars first
     SENDER   = os.getenv("SENDER_EMAIL")
     RECEIVER = os.getenv("RECEIVER_EMAIL")
     SERVER   = os.getenv("SMTP_SERVER")
@@ -46,10 +39,10 @@ def email_sender(subject: str, body: str):
     USER     = os.getenv("SMTP_USERNAME")
     PASSWD   = os.getenv("SMTP_PASSWORD")
 
-    # 2) If any are missing, fall back to config.ini for local dev
+
     if not all([SENDER, RECEIVER, SERVER, PORT, USER, PASSWD]):
         from src.common.config_loader import load_config
-        cfg = load_config()  # no path → will warn if config.ini isn’t present
+        cfg = load_config()
         try:
             SENDER   = SENDER   or cfg["EMAIL"]["SENDER_EMAIL"]
             RECEIVER = RECEIVER or cfg["EMAIL"]["RECEIVER_EMAIL"]
@@ -61,7 +54,7 @@ def email_sender(subject: str, body: str):
             print("⚠️  Email settings missing in environment and config.ini")
             return
 
-    # Cast port to int
+
     try:
         PORT = int(PORT)
     except:
@@ -77,10 +70,4 @@ def email_sender(subject: str, body: str):
         smtp_password=PASSWD
     )
 
-# Optional test harness
-if __name__ == "__main__":
-    # Quick test message
-    email_sender(
-        subject="🚀 Test Alert",
-        body="<h1>It Works!</h1><p>This is a test from deployed code.</p>"
-    )
+
