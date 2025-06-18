@@ -43,7 +43,6 @@ class DBManager:
             return result
 
     def initialize_database(self):
-        """Create products table if it doesn't exist."""
         create_table = """
         CREATE TABLE IF NOT EXISTS products (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -69,10 +68,6 @@ class DBManager:
                               url: str,
                               price_usd: float,
                               stock_status: str) -> bool:
-        """
-        Insert a new product or update on conflict.
-        Returns True if operation succeeded, False otherwise.
-        """
         now_iso = datetime.utcnow().replace(tzinfo=timezone.utc).isoformat()
 
         if sqlite3.sqlite_version_info >= (3, 24, 0):
@@ -119,7 +114,6 @@ class DBManager:
                     return False
 
     def get_product(self, site_name: str, product_code: str):
-        """Retrieve a single product by site and code."""
         query = "SELECT * FROM products WHERE site_name = ? AND product_code = ?;"
         return self._execute(query, (site_name, product_code), fetch='one')
 
@@ -127,9 +121,6 @@ class DBManager:
                                 site_name: str,
                                 product_code: str,
                                 is_tracked: bool) -> int:
-        """
-        Toggle tracking flag. Returns number of rows updated.
-        """
         query = "UPDATE products SET is_tracked = ? WHERE site_name = ? AND product_code = ?;"
         params = (1 if is_tracked else 0, site_name, product_code)
         return self._execute(query, params)
