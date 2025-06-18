@@ -18,5 +18,5 @@ telegram
 typing_extensions==4.14.0
 Unidecode==1.4.0
 unicode==2.9
-urllib3
+urllib3<2.0
 six
