@@ -6,7 +6,7 @@ from datetime import datetime
 import os
 
 from src.common import load_config
-from src.alerter import send_telegram_message_sync, email_sender
+from src.alerter import send_telegram_message_sync #, email_sender
 from src.scraper.mobilezone_scraper import main as scrape_mobilezone_playwright
 from src.scraper.megaeletronicos_scraper import main as scrape_megaeletronicos
 from src.storage.db_manager import DBManager
@@ -57,15 +57,15 @@ class Alerter:
             f"URL: {url}"
         )
         self.t_msgs.append(txt)
-        self.e_msgs.append({
-            "subject": f"Price Drop: {name}",
-            "message": (
-                f"<h1>{name}</h1>"
-                f"<p>Site: {site}</p>"
-                f"<p>Old Price: ${old:.2f}</p>"
-                f"<p>New Price: ${new:.2f}</p>"
-                f'<a href="{url}">Buy now</a>'
-            )
+        # self.e_msgs.append({
+        #     "subject": f"Price Drop: {name}",
+        #     "message": (
+        #         f"<h1>{name}</h1>"
+        #         f"<p>Site: {site}</p>"
+        #         f"<p>Old Price: ${old:.2f}</p>"
+        #         f"<p>New Price: ${new:.2f}</p>"
+        #         f'<a href="{url}">Buy now</a>'
+        #     )
         })
     def queue_price_increase(self, site, name, old, new, url):
         txt = (
@@ -77,15 +77,15 @@ class Alerter:
             f"URL: {url}"
         )
         self.t_msgs.append(txt)
-        self.e_msgs.append({
-            "subject": f"Price Increase: {name}",
-            "message": (
-                f"<h1>{name}</h1>"
-                f"<p>Site: {site}</p>"
-                f"<p>Old Price: ${old:.2f}</p>"
-                f"<p>New Price: ${new:.2f}</p>"
-                f'<a href="{url}">Buy now</a>'
-            )
+        # self.e_msgs.append({
+        #     "subject": f"Price Increase: {name}",
+        #     "message": (
+        #         f"<h1>{name}</h1>"
+        #         f"<p>Site: {site}</p>"
+        #         f"<p>Old Price: ${old:.2f}</p>"
+        #         f"<p>New Price: ${new:.2f}</p>"
+        #         f'<a href="{url}">Buy now</a>'
+        #     )
         })
 
     def queue_back_in_stock(self, site, name, price, url):
@@ -97,14 +97,14 @@ class Alerter:
             f"URL: {url}"
         )
         self.t_msgs.append(txt)
-        self.e_msgs.append({
-            "subject": f"Back in Stock: {name}",
-            "message": (
-                f"<h1>{name}</h1>"
-                f"<p>Site: {site}</p>"
-                f"<p>Price: ${price:.2f}</p>"
-                f'<a href="{url}">Check it out</a>'
-            )
+        # self.e_msgs.append({
+        #     "subject": f"Back in Stock: {name}",
+        #     "message": (
+        #         f"<h1>{name}</h1>"
+        #         f"<p>Site: {site}</p>"
+        #         f"<p>Price: ${price:.2f}</p>"
+        #         f'<a href="{url}">Check it out</a>'
+        #     )
         })
     def queue_out_of_stock(self, site, name, price, url):
         txt = (
@@ -115,14 +115,14 @@ class Alerter:
             f"URL: {url}"
         )
         self.t_msgs.append(txt)
-        self.e_msgs.append({
-            "subject": f"Out of Stock: {name}",
-            "message": (
-                f"<h1>{name}</h1>"
-                f"<p>Site: {site}</p>"
-                f"<p>Price: ${price:.2f}</p>"
-                f'<a href="{url}">Check it out</a>'
-            )
+        # self.e_msgs.append({
+        #     "subject": f"Out of Stock: {name}",
+        #     "message": (
+        #         f"<h1>{name}</h1>"
+        #         f"<p>Site: {site}</p>"
+        #         f"<p>Price: ${price:.2f}</p>"
+        #         f'<a href="{url}">Check it out</a>'
+        #     )
         })
 
     def flush(self):
@@ -130,10 +130,10 @@ class Alerter:
             logger.info(f"Sending {len(self.t_msgs)} Telegram alerts")
             for m in self.t_msgs:
                 send_telegram_message_sync(self.bot_token, self.chat_id, m)
-        if self.e_msgs:
-            logger.info(f"Sending {len(self.e_msgs)} email alerts")
-            for e in self.e_msgs:
-                email_sender(e["subject"], e["message"])
+        # if self.e_msgs:
+        #     logger.info(f"Sending {len(self.e_msgs)} email alerts")
+        #     for e in self.e_msgs:
+        #         email_sender(e["subject"], e["message"])
 
 
 def process_scraped_data(db: DBManager, site: str, items: list, alerter: Alerter):
