@@ -66,7 +66,7 @@ class Alerter:
         #         f"<p>New Price: ${new:.2f}</p>"
         #         f'<a href="{url}">Buy now</a>'
         #     )
-        })
+        # })
     def queue_price_increase(self, site, name, old, new, url):
         txt = (
             f"📈Price Increase Alert!\n\n"
@@ -86,7 +86,7 @@ class Alerter:
         #         f"<p>New Price: ${new:.2f}</p>"
         #         f'<a href="{url}">Buy now</a>'
         #     )
-        })
+        # })
 
     def queue_back_in_stock(self, site, name, price, url):
         txt = (
@@ -105,7 +105,7 @@ class Alerter:
         #         f"<p>Price: ${price:.2f}</p>"
         #         f'<a href="{url}">Check it out</a>'
         #     )
-        })
+        # })
     def queue_out_of_stock(self, site, name, price, url):
         txt = (
             f"📦Out of Stock!\n\n"
@@ -123,7 +123,7 @@ class Alerter:
         #         f"<p>Price: ${price:.2f}</p>"
         #         f'<a href="{url}">Check it out</a>'
         #     )
-        })
+        # })
 
     def flush(self):
         if self.bot_token and self.chat_id and self.t_msgs:
