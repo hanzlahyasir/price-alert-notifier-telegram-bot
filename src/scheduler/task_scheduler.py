@@ -31,9 +31,6 @@ def safe_run():
     threading.Thread(target=_target, daemon=True).start()
 
 def start_scheduler():
-    """
-    Run the scraper immediately, then every `interval_minutes`.
-    """
     logger.info(f"🚀 First run at {datetime.now()}")
     safe_run()
 
