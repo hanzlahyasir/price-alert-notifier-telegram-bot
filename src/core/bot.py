@@ -6,7 +6,7 @@ from datetime import datetime
 import os
 
 from src.common import load_config
-from src.alerter import send_telegram_message_sync #, email_sender
+from src.alerter import send_telegram_message_sync 
 from src.scraper.mobilezone_scraper import main as scrape_mobilezone_playwright
 from src.scraper.megaeletronicos_scraper import main as scrape_megaeletronicos
 from src.storage.db_manager import DBManager
