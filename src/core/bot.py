@@ -11,7 +11,7 @@ from src.scraper.mobilezone_scraper import main as scrape_mobilezone_playwright
 from src.scraper.megaeletronicos_scraper import main as scrape_megaeletronicos
 from src.storage.db_manager import DBManager
 
-# ─── Logging ────────────────────────────────────────────────────────────────────
+
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s %(levelname)s %(name)s: %(message)s",
@@ -19,12 +19,8 @@ logging.basicConfig(
 )
 logger = logging.getLogger("core.bot")
 
-# ─── Retry helper ───────────────────────────────────────────────────────────────
+
 async def scrape_with_retry(scraper_fn, max_retries=3, backoff=1.0):
-    """
-    scraper_fn: a *callable* that returns either a coroutine or a result.
-    If it returns a coroutine, we await it. Otherwise, we run it in executor.
-    """
     delay = backoff
     for attempt in range(1, max_retries + 1):
         try:
@@ -43,7 +39,7 @@ async def scrape_with_retry(scraper_fn, max_retries=3, backoff=1.0):
                 await asyncio.sleep(delay)
                 delay *= 2
 
-# ─── Alerter (same as before) ──────────────────────────────────────────────────
+
 class Alerter:
     def __init__(self, bot_token: str, chat_id: str):
         self.bot_token = bot_token
@@ -53,12 +49,12 @@ class Alerter:
 
     def queue_price_drop(self, site, name, old, new, url):
         txt = (
-            f"📉 **Price Drop Alert!**\n\n"
-            f"**Product:** {name}\n"
-            f"**Site:** {site}\n"
-            f"**Old Price:** ${old:.2f}\n"
-            f"**New Price:** **${new:.2f}**\n"
-            f"**URL:** {url}"
+            f"📉Price Drop Alert!\n\n"
+            f"Product: {name}\n"
+            f"Site: {site}\n"
+            f"Old Price: ${old:.2f}\n"
+            f"New Price: ${new:.2f}\n"
+            f"URL: {url}"
         )
         self.t_msgs.append(txt)
         self.e_msgs.append({
@@ -73,12 +69,12 @@ class Alerter:
         })
     def queue_price_increase(self, site, name, old, new, url):
         txt = (
-            f"📉 **Price Increase Alert!**\n\n"
-            f"**Product:** {name}\n"
-            f"**Site:** {site}\n"
-            f"**Old Price:** ${old:.2f}\n"
-            f"**New Price:** **${new:.2f}**\n"
-            f"**URL:** {url}"
+            f"📈Price Increase Alert!\n\n"
+            f"Product: {name}\n"
+            f"Site: {site}\n"
+            f"Old Price: ${old:.2f}\n"
+            f"New Price: ${new:.2f}\n"
+            f"URL: {url}"
         )
         self.t_msgs.append(txt)
         self.e_msgs.append({
@@ -94,11 +90,11 @@ class Alerter:
 
     def queue_back_in_stock(self, site, name, price, url):
         txt = (
-            f"📦 **Back in Stock!**\n\n"
-            f"**Product:** {name}\n"
-            f"**Site:** {site}\n"
-            f"**Price:** ${price:.2f}\n"
-            f"**URL:** {url}"
+            f"📦Back in Stock!\n\n"
+            f"Product: {name}\n"
+            f"Site: {site}\n"
+            f"Price: ${price:.2f}\n"
+            f"URL: {url}"
         )
         self.t_msgs.append(txt)
         self.e_msgs.append({
@@ -112,11 +108,11 @@ class Alerter:
         })
     def queue_out_of_stock(self, site, name, price, url):
         txt = (
-            f"📦 **Out of Stock!**\n\n"
-            f"**Product:** {name}\n"
-            f"**Site:** {site}\n"
-            f"**Price:** ${price:.2f}\n"
-            f"**URL:** {url}"
+            f"📦Out of Stock!\n\n"
+            f"Product: {name}\n"
+            f"Site: {site}\n"
+            f"Price: ${price:.2f}\n"
+            f"URL: {url}"
         )
         self.t_msgs.append(txt)
         self.e_msgs.append({
@@ -139,7 +135,7 @@ class Alerter:
             for e in self.e_msgs:
                 email_sender(e["subject"], e["message"])
 
-# ─── Data processing ────────────────────────────────────────────────────────────
+
 def process_scraped_data(db: DBManager, site: str, items: list, alerter: Alerter):
     if not items:
         logger.info(f"No data from {site}")
@@ -157,56 +153,60 @@ def process_scraped_data(db: DBManager, site: str, items: list, alerter: Alerter
         name   = p.get("name", "Unknown")
         url    = p.get("url", "#")
 
-        # sanitize price
         if not isinstance(price, (int, float)):
             try:
                 price = float(re.sub(r"[^\d.]", "", str(price)))
             except:
                 price = None
 
+
+        old_stock = stored.get("last_stock_status") if stored else None
+        old_stock_str = str(old_stock).lower() if old_stock is not None else None
+        new_stock_str = str(stock).lower() if stock is not None else ""
+        in_stock = lambda s: "in stock" in s
+        out_stock = lambda s: "out of stock" in s or "out stock" in s
+
         if stored:
-            old_price = stored["last_price_usd"]
-            old_stock = stored["last_stock_status"]
-
-            if price is not None and old_price is not None and price < old_price:
-                alerter.queue_price_drop(site, name, old_price, price, url)
-
-            if "out of stock" in str(old_stock).lower() and "in stock" in str(stock).lower():
+            if out_stock(old_stock_str or "") and in_stock(new_stock_str):
                 alerter.queue_back_in_stock(site, name, price or 0.0, url)
-            if price is not None and old_price is not None and price > old_price:
-                alerter.queue_price_increase(site, name, old_price, price, url)
 
-            if "in stock" in str(old_stock).lower() and "out stock" in str(stock).lower():
-                alerter.queue_out_of_stock(site, name, price or "N/A", url)
-
-        
+            elif in_stock(old_stock_str or "") and out_stock(new_stock_str):
+                alerter.queue_out_of_stock(site, name, price or 0.0, url)
+            else:
+                if price is not None and in_stock(new_stock_str) and in_stock(old_stock_str or ""):
+                    old_price = stored.get("last_price_usd")
+                    if old_price is not None:
+                        if price < old_price:
+                            alerter.queue_price_drop(site, name, old_price, price, url)
+                        elif price > old_price:
+                            alerter.queue_price_increase(site, name, old_price, price, url)
         else:
             logger.info(f"New product: {name} (${price}) on {site}")
+
 
         db.add_or_update_product(
             site_name=site,
             product_code=code,
             name=name,
             url=url,
-            price_usd=price or 0.0,
-            stock_status=str(stock),
+            price_usd=price if price is not None else stored.get("last_price_usd", 0.0),
+            stock_status=new_stock_str,
         )
 
-# ─── Orchestrator ──────────────────────────────────────────────────────────────
+
 async def run_all_scrapers_async(db: DBManager, alerter: Alerter):
-    # Define your scrapers here
+
     scrapers = {
         "mobilezone":       scrape_mobilezone_playwright,
         "megaeletronicos":  scrape_megaeletronicos,
     }
 
-    # Kick off all tasks with retry logic
     tasks = {
         site: asyncio.create_task(scrape_with_retry(fn))
         for site, fn in scrapers.items()
     }
 
-    # Gather results and process
+
     for site, task in tasks.items():
         items = await task
         process_scraped_data(db, site, items, alerter)
