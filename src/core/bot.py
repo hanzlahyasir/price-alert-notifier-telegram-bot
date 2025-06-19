@@ -183,13 +183,18 @@ def process_scraped_data(db: DBManager, site: str, items: list, alerter: Alerter
         else:
             logger.info(f"New product: {name} (${price}) on {site}")
 
+        if stored:
+            fallback_price = stored.get("last_price_usd", 0.0)
+        else:
+            fallback_price = 0.0
 
+        price_usd_val = price if price is not None else fallback_price
         db.add_or_update_product(
             site_name=site,
             product_code=code,
             name=name,
             url=url,
-            price_usd=price if price is not None else stored.get("last_price_usd", 0.0),
+            price_usd=price_usd_val,
             stock_status=new_stock_str,
         )
 
