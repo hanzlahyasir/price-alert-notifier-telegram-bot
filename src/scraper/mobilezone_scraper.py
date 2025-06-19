@@ -5,9 +5,7 @@ from urllib.parse import urljoin
 
 from playwright.async_api import (
     async_playwright,
-    TimeoutError as PlaywrightTimeoutError,
-    Error as PlaywrightError,
-    TargetClosedError
+    Error as PlaywrightError
 )
 
 BASE_URL = "https://www.mobilezone.com.py/"
@@ -23,7 +21,7 @@ browser_args = [
     '--disable-accelerated-2d-canvas',
     '--no-first-run',
     '--no-zygote',
-    '--single-process',  
+    '--single-process',
     '--disable-gpu'
 ]
 
@@ -115,13 +113,16 @@ async def scrape_one_category(browser, url, sem, max_retries: int = 4):
                 print(f"[Cat] Done {url}: {len(products)} products")
                 return products
 
-            except TargetClosedError as e:
-                print(f"[Cat] attempt {attempt}/{max_retries} failed: {e!r}")
-                if attempt == max_retries:
-                    raise
-                backoff = 2 ** (attempt - 1)
-                print(f"    retrying in {backoff}s…")
-                await asyncio.sleep(backoff)
+            except PlaywrightError as e:
+                if 'TargetClosedError' in e.__class__.__name__ or 'Target closed' in str(e):
+                    print(f"[Cat] attempt {attempt}/{max_retries} failed: {e!r}")
+                    if attempt == max_retries:
+                        raise
+                    backoff = 2 ** (attempt - 1)
+                    print(f"    retrying in {backoff}s…")
+                    await asyncio.sleep(backoff)
+                    continue
+                raise
 
             finally:
                 await page.close()
