@@ -14,9 +14,6 @@ schedule==1.2.2
 python-slugify
 soupsieve==2.7
 python-telegram-bot==13.7
-telegram
 typing_extensions==4.14.0
 Unidecode==1.4.0
 unicode==2.9
-urllib3<2.0
-six
